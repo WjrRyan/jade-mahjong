@@ -1,70 +1,88 @@
-# 2026-04-04 Decision Log
+# 2026-04-04 决策与思考记录
 
-## Problem Framing
+## 问题拆分方式
 
-Two issues were treated as separate symptoms with different root causes:
+这次没有把两个现象混成一个“体验不好”的笼统问题，而是分别看成两类根因：
 
-1. repetitive opening boards were a generation-quality problem
-2. unusable hints were an interaction-design problem
+1. 开局牌面重复感强，本质上是牌面生成质量问题
+2. `Hint` 不好用，本质上是交互反馈问题
 
-That distinction mattered because a single "shuffle things more" fix would not have solved both issues.
+这样拆开后，方案就更清楚：
 
-## Key Thinking Points
+- 第一个问题要改生成策略
+- 第二个问题要改交互链路
 
-### Board variety should improve without sacrificing solvability
+如果只是简单“多洗一点”或者“高亮更明显一点”，都只能碰到表面。
 
-The engine already guaranteed solvable layouts, so the change needed to preserve that contract.
+## 关键思考点
 
-Rejected direction:
+### 一、牌面必须在改善观感的同时保持可解
 
-- randomizing tile kinds freely at board creation
+现有引擎最重要的资产是“每关可解”。所以任何牌型优化都不能把这件事破坏掉。
 
-Reason:
+放弃的方向：
 
-- this would make the board look less repetitive, but it could reintroduce unsolvable states
+- 在生成时直接随机打散同类牌
 
-Chosen direction:
+原因：
 
-- keep the solvable-plan architecture
-- vary and score the plan selection before tile kinds are assigned
+- 看起来会更随机
+- 但会重新引入无解局面的风险
 
-### Hint should create forward motion, not just visual state
+最终选择：
 
-The previous hint flow technically found a playable pair, but the user still had to decide how to act on it and could end up with no meaningful feedback depending on settings.
+- 保留“先求可解移除计划”的架构
+- 在多个可解方案之间做有限比较
+- 用更偏玩家观感的标准筛开局前几步
 
-Rejected direction:
+### 二、Hint 应该制造动作，而不只是制造视觉状态
 
-- only add stronger highlight styling
+旧版 `Hint` 在逻辑上并不是完全坏的，它确实能找到一个可消配对。但玩家体验上的问题在于：
 
-Reason:
+- 提示结果不够“下一步化”
+- 关闭视觉高亮后价值明显下降
+- 玩家仍然需要自己判断该先点哪张、接着点哪张
 
-- styling alone would still fail when hint highlighting is disabled
+放弃的方向：
 
-Chosen direction:
+- 只加强高亮样式
 
-- make hint produce an interaction state by auto-selecting one tile and surfacing its partner
+原因：
 
-### Search quality had to stay cheap enough for all 20 levels
+- 本质还是在告诉玩家“这里有两个候选”
+- 没有把提示变成真正的操作引导
 
-The first version of the improved removal-plan scoring made playthrough tests too slow because it evaluated too much of the search tree.
+最终选择：
 
-Chosen refinement:
+- `Hint` 自动帮玩家完成第一下选中
+- 剩下那张作为明确的下一步目标
 
-- score and compare only the earliest steps where the player notices repetition most
-- use a fast first-valid-plan strategy deeper in the tree
+### 三、性能优化不能反过来伤害整局流程
 
-This preserved the user-facing benefit without making the solver too expensive.
+第一版开局分布优化虽然方向正确，但搜索太深，导致整套 `playthrough` 测试耗时明显变差。
 
-## Behavior Guarantees Preserved
+由此得到的结论是：
 
-- every level still starts from a solvable state
-- stall recovery still works
-- hint usage is still tracked
-- the player can still complete a hinted move with a single follow-up tap
+- 玩家最在意的是开局前几步的观感
+- 不需要为整棵搜索树都做最优
 
-## Follow-up Opportunities
+最终选择：
 
-- add a seeded board generator so level openings can be replayed and compared deterministically
-- surface a short hint animation or pulse so the prepared next move reads even faster
-- track whether opening-pair spacing should vary by difficulty tier
+- 只对开局前几层进行评分优化
+- 更深层直接走快速可解路径
+
+这样把收益集中在最有感知的部分。
+
+## 本次保住的行为约束
+
+- 每关仍然从可解状态开始
+- 停局恢复逻辑仍然有效
+- 提示次数仍然被计数
+- 玩家在点下 `Hint` 后，可以通过一次额外点击完成这次提示对应的匹配
+
+## 后续建议
+
+- 给局面生成加入种子机制，方便复现和比较不同开局
+- 给 `Hint` 增加更明确的视觉引导，例如短暂脉冲或轻动画
+- 根据难度等级控制开局分散程度，而不是所有关卡统一策略
 

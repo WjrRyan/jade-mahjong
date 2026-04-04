@@ -1,110 +1,147 @@
-# Jade Mahjong Delivery Summary
+# Jade Mahjong 交付总结
 
-## Project Overview
+## 项目概述
 
-This submission implements a mobile-first Mahjong Solitaire Web App inspired by the core flow of Vita Mahjong.
+本次交付实现了一个移动优先的麻将连连看 Web App，整体体验参考了 Vita Mahjong 这类产品中“轻量进入、节奏顺滑、适合单局游玩”的核心方向。
 
-Delivered scope:
+本次完成的主要范围包括：
 
-- Home screen
-- Game screen
-- Result screen
-- 20 playable levels
-- Local progress persistence
+- 首页
+- 游戏页
+- 结果页
+- 20 个可游玩的关卡
+- 本地进度持久化
 
-The product direction favors a calm, readable, senior-friendly experience over heavy feature scope.
+整体产品方向优先考虑：
 
-## Technical Choices
+- 流程完整
+- 手机上直接可玩
+- 牌面与信息清晰易读
+- 对年长用户更友好
 
-- Framework: React + TypeScript + Vite
-- State model: single-screen app flow managed in React state
-- Persistence: `localStorage`
-- Validation: Vitest tests, ESLint, and production build
+而不是优先堆叠复杂系统或商业化能力。
 
-I chose a Web App delivery because it is the fastest path to a real phone-playable artifact within the 24-hour constraint while still supporting genuine mobile interaction.
+## 技术选择
 
-## Game Implementation
+- 框架：React + TypeScript + Vite
+- 状态模型：基于 React state 的单应用流程
+- 持久化：`localStorage`
+- 验证方式：Vitest、ESLint、生产构建
 
-### Main flow
+选择 Web App 作为交付形态，是因为它能在较短周期内最快落地成一个真实可玩的移动端成品，同时保留良好的后续扩展空间。
 
-- Home: start game, choose unlocked levels, adjust settings
-- Game: match free identical tiles, use tools, recover from stalls
-- Result: review performance, replay, or continue to the next level
+## 游戏实现
 
-### Level design
+### 主流程
 
-- 20 level configurations are defined in code
-- Difficulty scales from easy to hard
-- Layouts combine row-based blocking and layered stacking
-- The engine computes a solvable removal plan for each board so every level has a valid path
+- 首页：开始游戏、选择已解锁关卡、调整设置
+- 游戏页：匹配自由牌、使用工具、处理停局
+- 结果页：查看成绩、重开当前关卡或进入下一关
 
-### Key gameplay rules
+### 关卡设计
 
-- A tile is free if there is no overlapping tile above it and at least one horizontal side is open
-- Matching two free tiles with the same kind removes them
-- `Hint` highlights one available pair
-- `Shuffle` rotates free-tile kinds only
-- `Undo` restores the previous move snapshot
-- `Smart Recovery` deterministically reshapes remaining active tiles so a stalled board becomes playable again
+- 一共定义了 20 个关卡
+- 难度从 easy 逐步上升到 hard
+- 布局包含平铺阻挡与分层堆叠
+- 引擎会先计算一个可解的移除顺序，再把牌型映射到布局上，确保每关都存在通关路径
 
-## AI Tool Usage
+### 核心玩法规则
 
-AI tools were used as part of the delivery workflow rather than being embedded as an in-game feature.
+- 一张牌如果上方没有遮挡，并且左右至少有一侧开放，就属于自由牌
+- 两张相同的自由牌可以被消除
+- `Hint` 会提供一个当前可执行的匹配提示
+- `Shuffle` 只重新分配当前自由牌的牌型
+- `Undo` 可以回退到上一步快照
+- `Smart Recovery` 会在停局时重整剩余牌型，让局面重新变得可玩
 
-Main AI-assisted steps:
+## AI 工具使用方式
 
-- turning the PDF prompt into an executable implementation plan
-- comparing project direction against the referenced Google Play product
-- structuring the codebase into screens, engine, level data, and storage layers
-- accelerating repetitive implementation and refactoring work
-- generating and refining tests and delivery documentation
+AI 工具主要用于研发与交付提效，而不是作为游戏内能力嵌入。
 
-## Problems Encountered and Solutions
+主要辅助环节包括：
 
-### 1. Solvable board generation
+- 将题目说明转化为可执行实现路径
+- 对产品方向与参考产品进行快速比较
+- 拆分代码结构与模块边界
+- 提升重复实现与回归修复效率
+- 补充测试与交付文档
 
-Problem:
-If tile kinds are assigned naively, some boards can become impossible even if the layout looks reasonable.
+## 遇到的问题与解决方式
 
-Solution:
-The engine computes a valid removal order from the occupied slot graph first, then assigns pair kinds onto that order. This guarantees each level has a solution path.
+### 1. 如何保证关卡可解
 
-### 2. Stalled-board recovery
+问题：
 
-Problem:
-A basic free-tile shuffle is not enough to rescue every stalled board.
+如果只是把牌型随意分配到布局上，布局看起来合理，也仍然可能出现无解局面。
 
-Solution:
-I separated normal shuffle from `Smart Recovery`. Normal shuffle preserves the lightweight tool behavior, while Smart Recovery deliberately redistributes active tile kinds to surface a new free pair.
+解决：
 
-### 3. Mobile readability
+引擎先基于 slot 图计算一个有效的移除计划，再把成对牌型分配到这个计划上，从而保证关卡存在解法。
 
-Problem:
-Small tiles and dense UI quickly reduce usability on phones.
+### 2. 基础洗牌不足以解决所有停局
 
-Solution:
-I kept the UI narrow, touch-first, and high-contrast, and added `Senior Mode` to enlarge tiles and labels without changing the underlying rules.
+问题：
 
-## Verification
+只对当前自由牌做轻量洗牌，并不能稳定救回所有停局。
 
-Commands run:
+解决：
+
+将普通 `Shuffle` 与 `Smart Recovery` 分开处理。前者保持轻量工具属性，后者更有针对性地重新分配剩余牌型，确保重新暴露一组可消配对。
+
+### 3. 手机上阅读与点按压力大
+
+问题：
+
+如果牌面太小、信息太挤，在手机上会明显降低可读性与操作舒适度。
+
+解决：
+
+整体界面采用窄宽度、触控优先与高对比风格，并加入 `Senior Mode`，在不改变核心规则的前提下放大牌面和内容展示。
+
+### 4. 开局牌面太固定
+
+问题：
+
+很多开局中会出现相同牌紧挨着摆放的情况，导致牌型变化感不强，也削弱了探索感。
+
+解决：
+
+在不破坏“关卡可解”前提下，引擎开始比较多个可解移除方案，并优先选择开局前几步更分散的方案，使局面不再总是呈现明显的成对贴邻结构。
+
+### 5. `Hint` 逻辑存在但体验上不好用
+
+问题：
+
+旧版 `Hint` 虽然可以找到匹配，但交互结果偏弱，尤其是在关闭高亮提示时帮助不明显。
+
+解决：
+
+新版 `Hint` 会自动选中一张可消牌，并把另一张搭子明确作为下一步目标显示，让提示真正转化为可执行动作。
+
+## 验证
+
+执行过的主要命令：
 
 ```bash
-npm test
+npx vitest run --maxWorkers=1 src/App.test.tsx src/game/boardViewport.test.ts src/game/gameEngine.test.ts src/game/playthrough.test.ts src/storage/progressStore.test.ts
 npm run lint
 npm run build
 ```
 
-Verified outcomes:
+验证结果包括：
 
-- unit coverage for tile freedom, matching, shuffle, undo, clear detection, and storage
-- flow coverage for clearing levels, unlocking progression, and Smart Recovery
-- successful lint run
-- successful production build
+- 牌面自由判定、匹配、洗牌、撤回、清局等单元逻辑通过
+- 关卡通关流程与停局恢复路径通过
+- 进度存储逻辑通过
+- 本轮开局牌型与 `Hint` 的回归测试通过
+- Lint 通过
+- 生产构建通过
 
-## What I Would Improve Next
+## 如果继续迭代，下一步建议
 
-- richer tile art and audio feedback
-- true PWA installability and icon packaging
-- deeper animation polish for match/remove transitions
-- optional analytics hooks for level completion and stall frequency
+- 补更完整的牌面资源与音效反馈
+- 增强匹配、消除、提示的动画表现
+- 加入可复现的随机种子以支持更稳定的对局分析
+- 提供更细粒度的难度调校手段
+- 补齐 PWA 安装与图标体系
+
