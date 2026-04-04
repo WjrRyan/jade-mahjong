@@ -1,0 +1,9 @@
+.DS_Store
+.omx/
+
+app/node_modules/
+app/dist/
+app/.vite/
+app/coverage/
+app/*.tsbuildinfo
+
