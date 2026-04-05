@@ -36,6 +36,9 @@ describe('progressStore', () => {
       moves: 18,
       timeSec: 71,
       stars: 3,
+      score: 1420,
+      bestCombo: 4,
+      doraMatches: 2,
     })
 
     saveProgress(progress)
@@ -46,6 +49,9 @@ describe('progressStore', () => {
       moves: 18,
       timeSec: 71,
       stars: 3,
+      score: 1420,
+      bestCombo: 4,
+      doraMatches: 2,
     })
   })
 })

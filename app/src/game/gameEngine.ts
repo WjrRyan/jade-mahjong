@@ -1,8 +1,11 @@
-import type { GameSnapshot, GameState, LevelConfig, SlotPosition, TileInstance } from '../types/game'
+import type { GameSnapshot, GameState, LevelConfig, ScoreEvent, SlotPosition, TileInstance } from '../types/game'
 
 const PLAN_VARIANT_COUNT = 4
 const PLAN_BRANCH_LIMIT = 12
 const PLAN_LOOKAHEAD_DEPTH = 2
+const BASE_PAIR_SCORE = 100
+const DORA_BONUS_SCORE = 150
+const COMBO_WINDOW_MS = 4_000
 const levelPlanCache = new Map<string, [string, string][]>()
 
 interface PlannedRemoval {
@@ -26,6 +29,40 @@ function cloneSnapshot(state: GameState): GameSnapshot {
     hintsUsed: state.hintsUsed,
     shufflesUsed: state.shufflesUsed,
     status: state.status,
+    score: state.score,
+    comboCount: state.comboCount,
+    bestCombo: state.bestCombo,
+    doraKind: state.doraKind,
+    doraMatches: state.doraMatches,
+    lastClearAt: state.lastClearAt,
+    lastScoreEvent: state.lastScoreEvent ? { ...state.lastScoreEvent } : null,
+  }
+}
+
+function chooseDoraKind(tiles: TileInstance[], randomSource: () => number): string {
+  const activeKinds = [...new Set(tiles.map((tile) => tile.kind))]
+  const index = Math.floor(randomSource() * activeKinds.length)
+  return activeKinds[index] ?? activeKinds[0]
+}
+
+export function getComboMultiplier(comboCount: number): number {
+  if (comboCount >= 5) {
+    return 1.6
+  }
+  if (comboCount >= 4) {
+    return 1.4
+  }
+  if (comboCount >= 3) {
+    return 1.2
+  }
+  return 1
+}
+
+function resetComboState(): Pick<GameState, 'comboCount' | 'lastClearAt' | 'lastScoreEvent'> {
+  return {
+    comboCount: 0,
+    lastClearAt: null,
+    lastScoreEvent: null,
   }
 }
 
@@ -248,9 +285,9 @@ function buildRemovalPlan(level: LevelConfig, variant: number): [string, string]
   return plannedRemoval.plan
 }
 
-function createTilesForLevel(level: LevelConfig): TileInstance[] {
+function createTilesForLevel(level: LevelConfig, randomSource: () => number): TileInstance[] {
   const slotsByKey = new Map(level.slots.map((slot) => [positionKey(slot), slot]))
-  const variant = level.tilePairs.length > 1 ? Math.floor(Math.random() * PLAN_VARIANT_COUNT) : 0
+  const variant = level.tilePairs.length > 1 ? Math.floor(randomSource() * PLAN_VARIANT_COUNT) : 0
   const plan = buildRemovalPlan(level, variant)
 
   return plan.flatMap(([leftKey, rightKey], pairIndex) => {
@@ -326,11 +363,12 @@ export function isLevelCleared(tiles: TileInstance[]): boolean {
   return tiles.every((tile) => tile.removed)
 }
 
-export function createInitialGameState(level: LevelConfig): GameState {
+export function createInitialGameState(level: LevelConfig, randomSource: () => number = Math.random): GameState {
+  const tiles = createTilesForLevel(level, randomSource)
   const state: GameState = {
     levelId: level.id,
     level,
-    tiles: createTilesForLevel(level),
+    tiles,
     selectedTileId: null,
     moves: 0,
     timeSec: 0,
@@ -339,12 +377,19 @@ export function createInitialGameState(level: LevelConfig): GameState {
     status: 'playing',
     history: [],
     lastMatch: null,
+    score: 0,
+    comboCount: 0,
+    bestCombo: 0,
+    doraKind: chooseDoraKind(tiles, randomSource),
+    doraMatches: 0,
+    lastClearAt: null,
+    lastScoreEvent: null,
   }
 
   return withStatus(state)
 }
 
-export function selectTile(state: GameState, tileId: string): GameState {
+export function selectTile(state: GameState, tileId: string, currentTimeMs: number = Date.now()): GameState {
   if (state.status === 'won') {
     return state
   }
@@ -385,6 +430,7 @@ export function selectTile(state: GameState, tileId: string): GameState {
   if (selectedTile.kind !== tile.kind || !isTileFree(state.tiles, selectedTile.id)) {
     return {
       ...state,
+      ...resetComboState(),
       selectedTileId: tileId,
       tiles: state.tiles.map((candidate) => ({
         ...candidate,
@@ -395,10 +441,35 @@ export function selectTile(state: GameState, tileId: string): GameState {
   }
 
   const snapshot = cloneSnapshot(state)
+  const isDoraMatch = selectedTile.kind === state.doraKind
+  const doraBonus = isDoraMatch ? DORA_BONUS_SCORE : 0
+  const comboCount =
+    state.lastClearAt !== null && currentTimeMs - state.lastClearAt <= COMBO_WINDOW_MS
+      ? state.comboCount + 1
+      : 1
+  const comboMultiplier = getComboMultiplier(comboCount)
+  const pairScore = BASE_PAIR_SCORE
+  const totalAwarded = Math.round((pairScore + doraBonus) * comboMultiplier)
+  const lastScoreEvent: ScoreEvent = {
+    pairScore,
+    doraBonus,
+    totalAwarded,
+    comboCount,
+    comboMultiplier,
+    brokeCombo: state.comboCount > 0 && comboCount === 1,
+    isDoraMatch,
+  }
+
   const nextState: GameState = {
     ...state,
     selectedTileId: null,
     moves: state.moves + 1,
+    score: state.score + totalAwarded,
+    comboCount,
+    bestCombo: Math.max(state.bestCombo, comboCount),
+    doraMatches: state.doraMatches + (isDoraMatch ? 1 : 0),
+    lastClearAt: currentTimeMs,
+    lastScoreEvent,
     tiles: state.tiles.map((candidate) => {
       if (candidate.id === selectedTile.id || candidate.id === tile.id) {
         return {
@@ -433,6 +504,7 @@ export function shuffleFreeTiles(state: GameState): GameState {
 
   const nextState: GameState = {
     ...state,
+    ...resetComboState(),
     shufflesUsed: state.shufflesUsed + 1,
     selectedTileId: null,
     tiles: state.tiles.map((tile) => ({
@@ -496,6 +568,7 @@ export function smartShuffle(state: GameState): GameState {
   const snapshot = cloneSnapshot(state)
   const nextState: GameState = {
     ...state,
+    ...resetComboState(),
     shufflesUsed: state.shufflesUsed + 1,
     selectedTileId: null,
     tiles: state.tiles.map((tile) => ({
@@ -524,6 +597,13 @@ export function undoLastMove(state: GameState): GameState {
     hintsUsed: previous.hintsUsed,
     shufflesUsed: previous.shufflesUsed,
     status: previous.status,
+    score: previous.score,
+    comboCount: previous.comboCount,
+    bestCombo: previous.bestCombo,
+    doraKind: previous.doraKind,
+    doraMatches: previous.doraMatches,
+    lastClearAt: previous.lastClearAt,
+    lastScoreEvent: previous.lastScoreEvent ? { ...previous.lastScoreEvent } : null,
     history: state.history.slice(0, -1),
     lastMatch: null,
   }
@@ -565,6 +645,7 @@ export function revealHint(state: GameState): { nextState: GameState; hintIds: s
 export function markHintUsed(state: GameState): GameState {
   return {
     ...state,
+    ...resetComboState(),
     hintsUsed: state.hintsUsed + 1,
   }
 }
@@ -573,13 +654,23 @@ export function restartLevel(level: LevelConfig): GameState {
   return createInitialGameState(level)
 }
 
-export function tickTimer(state: GameState): GameState {
+export function tickTimer(state: GameState, currentTimeMs: number = Date.now()): GameState {
   if (state.status !== 'playing') {
     return state
   }
 
+  const comboState =
+    state.comboCount > 0 && state.lastClearAt !== null && currentTimeMs - state.lastClearAt > COMBO_WINDOW_MS
+      ? resetComboState()
+      : {
+          comboCount: state.comboCount,
+          lastClearAt: state.lastClearAt,
+          lastScoreEvent: state.lastScoreEvent,
+        }
+
   return {
     ...state,
+    ...comboState,
     timeSec: state.timeSec + 1,
   }
 }

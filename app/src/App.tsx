@@ -47,6 +47,9 @@ function calculateStars(level: LevelConfig, state: GameState): LevelResult {
     moves: state.moves,
     timeSec: state.timeSec,
     stars,
+    score: state.score,
+    bestCombo: state.bestCombo,
+    doraMatches: state.doraMatches,
   }
 }
 

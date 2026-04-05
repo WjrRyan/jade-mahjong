@@ -32,6 +32,9 @@ function solveLevel(level: LevelConfig): { state: GameState; result: LevelResult
       moves: state.moves,
       timeSec: state.timeSec,
       stars: 3,
+      score: state.score,
+      bestCombo: state.bestCombo,
+      doraMatches: state.doraMatches,
     },
   }
 }
@@ -78,6 +81,13 @@ describe('playthrough flow', () => {
       status: 'stalled',
       history: [],
       lastMatch: null,
+      score: 0,
+      comboCount: 0,
+      bestCombo: 0,
+      doraKind: 'wan-1',
+      doraMatches: 0,
+      lastClearAt: null,
+      lastScoreEvent: null,
     }
 
     const recovered = smartShuffle(stalledState)

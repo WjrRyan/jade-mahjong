@@ -40,6 +40,11 @@ export function ResultScreen({
 
         <div className="result-stats">
           <article className="stat-card">
+            <span className="stat-label">Score</span>
+            <strong>{result.score}</strong>
+            <p className="stat-note">Final total</p>
+          </article>
+          <article className="stat-card">
             <span className="stat-label">Moves</span>
             <strong>{result.moves}</strong>
             <p className="stat-note">Par {level.parMoves}</p>
@@ -53,6 +58,16 @@ export function ResultScreen({
             <span className="stat-label">Rating</span>
             <strong>{result.stars} / 3</strong>
             <p className="stat-note">Lantern stars</p>
+          </article>
+          <article className="stat-card">
+            <span className="stat-label">Best Combo</span>
+            <strong>{result.bestCombo}</strong>
+            <p className="stat-note">Peak streak</p>
+          </article>
+          <article className="stat-card">
+            <span className="stat-label">Dora Clears</span>
+            <strong>{result.doraMatches}</strong>
+            <p className="stat-note">Lucky pairs</p>
           </article>
         </div>
 

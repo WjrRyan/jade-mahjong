@@ -8,6 +8,21 @@ const defaultSettings: GameSettings = {
   soundEnabled: true,
 }
 
+function normalizeLevelResult(result: Partial<LevelResult> | undefined): LevelResult | undefined {
+  if (!result) {
+    return undefined
+  }
+
+  return {
+    moves: result.moves ?? 0,
+    timeSec: result.timeSec ?? 0,
+    stars: result.stars ?? 0,
+    score: result.score ?? 0,
+    bestCombo: result.bestCombo ?? 0,
+    doraMatches: result.doraMatches ?? 0,
+  }
+}
+
 export function createDefaultProgress(): ProgressState {
   return {
     unlockedLevel: 1,
@@ -24,9 +39,15 @@ export function loadProgress(): ProgressState {
 
   try {
     const parsed = JSON.parse(raw) as Partial<ProgressState>
+    const bestResultsByLevel = Object.fromEntries(
+      Object.entries(parsed.bestResultsByLevel ?? {})
+        .map(([levelId, result]) => [levelId, normalizeLevelResult(result)])
+        .filter((entry): entry is [string, LevelResult] => Boolean(entry[1])),
+    )
+
     return {
       unlockedLevel: parsed.unlockedLevel ?? 1,
-      bestResultsByLevel: parsed.bestResultsByLevel ?? {},
+      bestResultsByLevel,
       settings: {
         ...defaultSettings,
         ...parsed.settings,

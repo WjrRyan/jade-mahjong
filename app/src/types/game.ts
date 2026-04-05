@@ -25,6 +25,16 @@ export interface TileInstance extends SlotPosition {
   selected: boolean
 }
 
+export interface ScoreEvent {
+  pairScore: number
+  doraBonus: number
+  totalAwarded: number
+  comboCount: number
+  comboMultiplier: number
+  brokeCombo: boolean
+  isDoraMatch: boolean
+}
+
 export interface GameSnapshot {
   tiles: TileInstance[]
   selectedTileId: string | null
@@ -32,6 +42,13 @@ export interface GameSnapshot {
   hintsUsed: number
   shufflesUsed: number
   status: GameStatus
+  score: number
+  comboCount: number
+  bestCombo: number
+  doraKind: string
+  doraMatches: number
+  lastClearAt: number | null
+  lastScoreEvent: ScoreEvent | null
 }
 
 export interface GameState {
@@ -46,6 +63,13 @@ export interface GameState {
   status: GameStatus
   history: GameSnapshot[]
   lastMatch: [string, string] | null
+  score: number
+  comboCount: number
+  bestCombo: number
+  doraKind: string
+  doraMatches: number
+  lastClearAt: number | null
+  lastScoreEvent: ScoreEvent | null
 }
 
 export interface GameSettings {
@@ -58,6 +82,9 @@ export interface LevelResult {
   moves: number
   timeSec: number
   stars: number
+  score: number
+  bestCombo: number
+  doraMatches: number
 }
 
 export interface ProgressState {

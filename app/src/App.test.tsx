@@ -43,6 +43,13 @@ function createHintState(level: LevelConfig): GameState {
     status: 'playing',
     history: [],
     lastMatch: null,
+    score: 0,
+    comboCount: 0,
+    bestCombo: 0,
+    doraKind: 'wan-1',
+    doraMatches: 0,
+    lastClearAt: null,
+    lastScoreEvent: null,
   }
 }
 
@@ -88,6 +95,8 @@ describe('App hint flow', () => {
     await user.click(screen.getByTestId('tile-hint-b'))
 
     expect(screen.getByText('Round Complete')).toBeInTheDocument()
+    expect(screen.getByText('Score')).toBeInTheDocument()
+    expect(screen.getByText('250')).toBeInTheDocument()
     expect(save).toHaveBeenCalledTimes(1)
   })
 })

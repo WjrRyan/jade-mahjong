@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { TileFace } from '../components/TileFace'
 import { getTileKindMeta } from '../data/tileKinds'
 import { getBoardScale } from '../game/boardViewport'
-import { isTileFree } from '../game/gameEngine'
+import { getComboMultiplier, isTileFree } from '../game/gameEngine'
 import type { GameState, LevelConfig, ProgressState } from '../types/game'
 
 interface GameScreenProps {
@@ -49,6 +49,9 @@ export function GameScreen({
 }: GameScreenProps) {
   const metrics = boardMetrics(level)
   const hinted = new Set(settings.highlightHints ? hintIds : [])
+  const doraMeta = getTileKindMeta(state.doraKind)
+  const activeMultiplier = getComboMultiplier(state.comboCount)
+  const comboTier = state.comboCount >= 5 ? 'storm' : state.comboCount >= 3 ? 'heat' : 'calm'
   const boardShellRef = useRef<HTMLElement | null>(null)
   const [boardScale, setBoardScale] = useState(1)
 
@@ -102,25 +105,90 @@ export function GameScreen({
 
       <section className="score-strip score-strip--game">
         <article className="mini-stat">
-          <span>Moves</span>
-          <strong>{state.moves}</strong>
-          <small>Par {level.parMoves}</small>
+          <span>Score</span>
+          <strong>{state.score}</strong>
+          <small>Live total</small>
+        </article>
+        <article className="mini-stat">
+          <span>Combo</span>
+          <strong>{state.comboCount}</strong>
+          <small>Best {state.bestCombo}</small>
+        </article>
+        <article className="mini-stat">
+          <span>Multiplier</span>
+          <strong>x{activeMultiplier.toFixed(1)}</strong>
+          <small>3+ starts scaling</small>
         </article>
         <article className="mini-stat">
           <span>Remaining</span>
           <strong>{state.tiles.filter((tile) => !tile.removed).length}</strong>
           <small>Tiles on board</small>
         </article>
-        <article className="mini-stat">
-          <span>Hints</span>
-          <strong>{state.hintsUsed}</strong>
-          <small>Guided clicks</small>
-        </article>
-        <article className="mini-stat">
-          <span>Shuffles</span>
-          <strong>{state.shufflesUsed}</strong>
-          <small>Board resets</small>
-        </article>
+      </section>
+
+      <section className="dora-stage">
+        <div className="dora-stage__spotlight">
+          <div className="dora-stage__tile">
+            <TileFace meta={doraMeta} />
+          </div>
+          <div className="dora-stage__copy">
+            <p className="dora-stage__eyebrow">Lucky tile</p>
+            <strong>{doraMeta.label}</strong>
+            <span>+150 bonus and full combo multiplier</span>
+          </div>
+        </div>
+        <div className="dora-stage__stats">
+          <span className="dora-stage__chip">Dora clears {state.doraMatches}</span>
+          <span className={`dora-stage__chip dora-stage__chip--${comboTier}`}>
+            Combo x{activeMultiplier.toFixed(1)}
+          </span>
+        </div>
+      </section>
+
+      <section
+        key={state.lastClearAt ?? 'idle'}
+        className={[
+          'score-burst',
+          state.lastScoreEvent ? 'score-burst--live' : 'score-burst--idle',
+          state.lastScoreEvent?.isDoraMatch ? 'score-burst--dora' : '',
+          comboTier === 'heat' ? 'score-burst--heat' : '',
+          comboTier === 'storm' ? 'score-burst--storm' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <div className="score-burst__impact">
+          <strong>{state.lastScoreEvent ? `+${state.lastScoreEvent.totalAwarded}` : 'Ready'}</strong>
+          <span>
+            {state.lastScoreEvent
+              ? state.lastScoreEvent.isDoraMatch
+                ? 'Lucky Tile Hit'
+                : 'Clean Pair'
+              : `Hit ${doraMeta.label} for a boosted clear`}
+          </span>
+        </div>
+        <div className="score-burst__meta">
+          {state.lastScoreEvent ? (
+            <>
+              {state.lastScoreEvent.isDoraMatch ? (
+                <span className="score-burst__pill score-burst__pill--dora">DORA!</span>
+              ) : null}
+              {state.lastScoreEvent.comboCount >= 3 ? (
+                <span className={`score-burst__pill score-burst__pill--${comboTier}`}>
+                  {state.lastScoreEvent.comboCount} Combo
+                </span>
+              ) : null}
+              <span className="score-burst__pill">
+                x{state.lastScoreEvent.comboMultiplier.toFixed(1)} multiplier
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="score-burst__pill score-burst__pill--dora">Lucky Tile +150</span>
+              <span className="score-burst__pill">3 Combo starts bonus scaling</span>
+            </>
+          )}
+        </div>
       </section>
 
       {state.status === 'stalled' ? (
@@ -144,9 +212,14 @@ export function GameScreen({
             <p className="board-shell__eyebrow">Jade table</p>
             <strong>Free tiles glow brighter and rise forward</strong>
           </div>
-          <span className="board-shell__badge">
-            {settings.seniorMode ? 'Senior view' : 'Classic view'}
-          </span>
+          <div className="board-shell__badges">
+            <span className="board-shell__badge board-shell__badge--dora">
+              Dora · {doraMeta.label}
+            </span>
+            <span className="board-shell__badge">
+              {settings.seniorMode ? 'Senior view' : 'Classic view'}
+            </span>
+          </div>
         </div>
         <div
           className="board-stage"
@@ -178,6 +251,7 @@ export function GameScreen({
                   type="button"
                   className={[
                     'tile-card',
+                    tile.kind === state.doraKind ? 'dora' : '',
                     free ? 'free' : 'blocked',
                     tile.selected ? 'selected' : '',
                     hinted.has(tile.id) ? 'hinted' : '',
@@ -198,7 +272,11 @@ export function GameScreen({
         </div>
         <div className="board-shell__footer">
           <span>Need a nudge? Use Hint to queue your next tap.</span>
-          <span>{hintIds.length ? 'Hint prepared' : 'Board ready'}</span>
+          <span>
+            {hintIds.length
+              ? 'Hint prepared'
+              : `Hints ${state.hintsUsed} · Shuffles ${state.shufflesUsed} · Dora clears ${state.doraMatches}`}
+          </span>
         </div>
       </section>
 
