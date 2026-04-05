@@ -188,6 +188,9 @@ npm run build
 
 更细的交付记录与验证说明位于：
 
+- `docs/project-summary.md`
+- `docs/product-prd.md`
+- `docs/technical-spec.md`
 - `app/docs/submission-summary.md`
 - `app/docs/2026-04-04-core-work.md`
 - `app/docs/2026-04-04-decision-log.md`
