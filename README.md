@@ -188,13 +188,13 @@ npm run build
 
 更细的交付记录与验证说明位于：
 
-- `docs/project-summary.md`
-- `docs/product-prd.md`
-- `docs/technical-spec.md`
-- `app/docs/submission-summary.md`
-- `app/docs/2026-04-04-core-work.md`
-- `app/docs/2026-04-04-decision-log.md`
-- `app/docs/2026-04-04-validation-log.md`
+- [项目总结](docs/project-summary.md)：概述整体实现思路、开发过程中遇到的问题、解决方案，以及宝牌机制带来的产品创新。
+- [产品 PRD](docs/product-prd.md)：从产品视角描述目标用户、核心体验、功能范围、差异化设计与成功标准。
+- [技术 Spec](docs/technical-spec.md)：从工程视角描述模块结构、核心类型、规则引擎、宝牌/连击系统与持久化方案。
+- [交付总结](app/docs/submission-summary.md)：总结本次交付范围、技术选择、关键问题与阶段性验证结果。
+- [核心工作记录](app/docs/2026-04-04-core-work.md)：记录首轮关键优化内容，包括开局牌型分布和 Hint 交互改造。
+- [决策与思考记录](app/docs/2026-04-04-decision-log.md)：说明主要方案取舍、约束条件与实现时的关键判断。
+- [验证与发布记录](app/docs/2026-04-04-validation-log.md)：记录测试、Lint、构建与发布相关的验证结果。
 
 ## 公开仓库说明
 
